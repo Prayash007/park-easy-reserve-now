@@ -1,73 +1,151 @@
-# Welcome to your Lovable project
+# 🚗 Smart Parking Lot System
 
-## Project info
+A real-time, full-stack parking reservation web application that enables users to view, book, and manage parking spots efficiently using **Supabase**, **React**, and **Tailwind CSS**. It offers live updates on availability and empowers authenticated users to make bookings, cancel reservations, and interact with a responsive UI.
 
-**URL**: https://lovable.dev/projects/7a329314-88c8-480e-8e75-ad810c423105
+---
 
-## How can I edit this code?
+## 📸 Preview
 
-There are several ways of editing your application.
+![App Preview](https://park-easy-reserve-now.vercel.app/)  
 
-**Use Lovable**
+---
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/7a329314-88c8-480e-8e75-ad810c423105) and start prompting.
+## ✨ Features
 
-Changes made via Lovable will be committed automatically to this repo.
+- 🔐 **Authentication** – Secure login/logout with Supabase Auth.
+- 🗺️ **Location-Based Layouts** – Dynamically renders parking spots per location.
+- ✅ **Real-Time Spot Updates** – Auto-refreshes UI via Supabase Realtime.
+- 💳 **Spot Booking** – Reserve any available parking slot with a single click.
+- ❌ **Booking Cancellation** – Cancel your own reservation anytime.
+- 🧠 **Responsive UI** – Tailwind CSS for seamless cross-device experience.
+- 🌈 **Status Visualization**:
+  - 🟢 Available
+  - 🔴 Occupied
+  - 🔵 Booked by You
+  - 🟡 Currently Selected
 
-**Use your preferred IDE**
+---
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+## 📦 Tech Stack
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+| Frontend      | Backend / DB     | Realtime | Styling        |
+| ------------- | ---------------- | -------- | -------------- |
+| React + Vite  | Supabase (PostgreSQL) | Supabase Channels | Tailwind CSS |
 
-Follow these steps:
+---
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+## 🧠 How It Works
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+1. **Users log in** using secure Supabase Auth.
+2. On selecting a location, parking layout is dynamically generated.
+3. Clicking a spot:
+   - ✅ Available → Select for booking.
+   - 🔵 Booked by you → Option to cancel.
+   - 🔴 Occupied → Not clickable.
+4. All actions are synced in real-time with other users via Supabase Realtime channels.
 
-# Step 3: Install the necessary dependencies.
-npm i
+---
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+## 🏗️ Project Structure (Highlights)
+
 ```
 
-**Edit a file directly in GitHub**
+src/
+│
+├── components/
+│   └── ui/               # Reusable Tailwind + ShadCN UI components
+├── contexts/
+│   └── AuthContext.tsx   # User auth context
+├── hooks/
+│   └── use-toast.ts      # Toast for success/error feedback
+├── integrations/
+│   └── supabase/client.ts# Supabase initialization
+├── pages/
+│   └── ParkingLot.tsx    # Main parking logic & rendering
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+````
 
-**Use GitHub Codespaces**
+---
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## 🔧 Local Setup
 
-## What technologies are used for this project?
+1. **Clone this repo**
+   ```bash
+   git clone https://github.com/your-username/smart-parking.git
+   cd smart-parking
+````
 
-This project is built with:
+2. **Install dependencies**
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+   ```bash
+   npm install
+   ```
 
-## How can I deploy this project?
+3. **Configure Supabase**
 
-Simply open [Lovable](https://lovable.dev/projects/7a329314-88c8-480e-8e75-ad810c423105) and click on Share -> Publish.
+   * Create a project on [Supabase](https://supabase.com)
+   * Copy your credentials to `.env`:
 
-## Can I connect a custom domain to my Lovable project?
+     ```
+     VITE_SUPABASE_URL=https://your-project.supabase.co
+     VITE_SUPABASE_ANON_KEY=your-anon-key
+     ```
 
-Yes, you can!
+4. **Start development server**
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+   ```bash
+   npm run dev
+   ```
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+---
+
+## 🧪 Database Schema (Supabase)
+
+### `parking_locations`
+
+| Column           | Type    |
+| ---------------- | ------- |
+| id               | UUID    |
+| name             | Text    |
+| price\_per\_hour | Numeric |
+| rows             | Integer |
+| spots\_per\_row  | Integer |
+| total\_spots     | Integer |
+
+### `parking_spots`
+
+| Column         | Type           |
+| -------------- | -------------- |
+| id             | UUID           |
+| location\_id   | UUID (FK)      |
+| spot\_number   | Integer        |
+| is\_occupied   | Boolean        |
+| booked\_by     | UUID (User ID) |
+| booking\_start | Timestamp      |
+| updated\_at    | Timestamp      |
+
+---
+
+## 🔒 Authentication & Access
+
+* Only **logged-in users** can:
+
+  * Book or cancel spots.
+  * View their bookings.
+* Unauthorized users are **redirected to login** (handled via `AuthContext`).
+
+---
+
+## 🎯 Future Enhancements
+
+* 📅 Add start/end time slot selection.
+* 🧾 Generate booking receipts.
+* 📊 Admin dashboard for managing locations.
+* 🔔 Notifications for session expiry.
+
+
+## 💬 Feedback or Contributions?
+
+Raise an issue or PR on [GitHub](https://github.com/your-username/smart-parking)!
+
+```

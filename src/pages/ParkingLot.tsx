@@ -105,9 +105,10 @@ const ParkingLot = () => {
 
   const handleSpotClick = (spotNumber: number) => {
     const spot = parkingSpots.find(s => s.spot_number === spotNumber);
-    if (spot?.is_occupied) {
-      return; // Can't select occupied spots
+    if (spot?.is_occupied && spot.booked_by !== user?.id) {
+      return; // Can't select other people's spots
     }
+
     setSelectedSpot(spotNumber);
   };
 
@@ -153,10 +154,45 @@ const ParkingLot = () => {
     return 'available';
   };
 
+  const handleCancelBooking = async () => {
+  if (!selectedSpot || !user) return;
+
+  try {
+    const { error } = await supabase
+      .from('parking_spots')
+      .update({
+        is_occupied: false,
+        booked_by: null,
+        booking_start: null,
+        updated_at: new Date().toISOString()
+      })
+      .eq('location_id', locationId)
+      .eq('spot_number', selectedSpot)
+      .eq('booked_by', user.id); // Ensure user can cancel only their own booking
+
+    if (error) throw error;
+
+    toast({
+      title: "Booking Cancelled",
+      description: `Your reservation for spot ${selectedSpot} has been cancelled.`,
+    });
+
+    setSelectedSpot(null);
+  } catch (error) {
+    console.error('Error cancelling booking:', error);
+    toast({
+      title: "Cancellation Failed",
+      description: "Failed to cancel the booking. Please try again.",
+      variant: "destructive",
+    });
+  }
+};
+
+
   const getSpotColor = (status: string) => {
     switch (status) {
       case 'occupied': return 'bg-red-500 cursor-not-allowed';
-      case 'booked': return 'bg-blue-500 cursor-not-allowed';
+      case 'booked': return 'bg-blue-500 cursor-pointer hover:bg-blue-600';
       case 'selected': return 'bg-yellow-500 cursor-pointer';
       case 'available': return 'bg-green-500 hover:bg-green-600 cursor-pointer';
       default: return 'bg-gray-300';
@@ -330,6 +366,15 @@ const ParkingLot = () => {
             </CardContent>
           </Card>
         )}
+        {selectedSpot && getSpotStatus(selectedSpot) === 'booked' && (
+        <Button 
+          variant="destructive" 
+          onClick={handleCancelBooking} 
+          className="w-full mt-4"
+        >
+          Cancel Booking
+        </Button>
+      )}
       </div>
     </div>
   );
