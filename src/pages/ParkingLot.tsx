@@ -10,7 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 
 // Mock parking lot layout data
 const mockParkingData = {
-  1: {
+  "1": {
     name: "Downtown Mall",
     pricePerHour: 5,
     layout: {
@@ -19,7 +19,7 @@ const mockParkingData = {
       occupied: [1, 3, 7, 12, 15, 23, 28, 34, 37, 41, 45],
     }
   },
-  2: {
+  "2": {
     name: "Business District",
     pricePerHour: 8,
     layout: {
