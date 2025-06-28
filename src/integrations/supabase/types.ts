@@ -9,7 +9,113 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      parking_locations: {
+        Row: {
+          address: string
+          created_at: string | null
+          distance: string | null
+          id: string
+          image_url: string | null
+          name: string
+          price_per_hour: number
+          rows: number
+          spots_per_row: number
+          total_spots: number
+        }
+        Insert: {
+          address: string
+          created_at?: string | null
+          distance?: string | null
+          id?: string
+          image_url?: string | null
+          name: string
+          price_per_hour: number
+          rows: number
+          spots_per_row: number
+          total_spots: number
+        }
+        Update: {
+          address?: string
+          created_at?: string | null
+          distance?: string | null
+          id?: string
+          image_url?: string | null
+          name?: string
+          price_per_hour?: number
+          rows?: number
+          spots_per_row?: number
+          total_spots?: number
+        }
+        Relationships: []
+      }
+      parking_spots: {
+        Row: {
+          booked_by: string | null
+          booking_end: string | null
+          booking_start: string | null
+          created_at: string | null
+          id: string
+          is_occupied: boolean | null
+          location_id: string | null
+          spot_number: number
+          updated_at: string | null
+        }
+        Insert: {
+          booked_by?: string | null
+          booking_end?: string | null
+          booking_start?: string | null
+          created_at?: string | null
+          id?: string
+          is_occupied?: boolean | null
+          location_id?: string | null
+          spot_number: number
+          updated_at?: string | null
+        }
+        Update: {
+          booked_by?: string | null
+          booking_end?: string | null
+          booking_start?: string | null
+          created_at?: string | null
+          id?: string
+          is_occupied?: boolean | null
+          location_id?: string | null
+          spot_number?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "parking_spots_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "parking_locations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string | null
+          email: string | null
+          full_name: string | null
+          id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email?: string | null
+          full_name?: string | null
+          id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

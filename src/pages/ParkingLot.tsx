@@ -1,72 +1,154 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ArrowLeft, Car, Clock, DollarSign } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
-// Mock parking lot layout data
-const mockParkingData = {
-  "1": {
-    name: "Downtown Mall",
-    pricePerHour: 5,
-    layout: {
-      rows: 5,
-      spotsPerRow: 10,
-      occupied: [1, 3, 7, 12, 15, 23, 28, 34, 37, 41, 45],
-    }
-  },
-  "2": {
-    name: "Business District",
-    pricePerHour: 8,
-    layout: {
-      rows: 3,
-      spotsPerRow: 10,
-      occupied: [2, 5, 8, 11, 14, 18, 22, 25, 28],
-    }
-  },
-};
+interface ParkingLocation {
+  id: string;
+  name: string;
+  price_per_hour: number;
+  rows: number;
+  spots_per_row: number;
+  total_spots: number;
+}
+
+interface ParkingSpot {
+  id: string;
+  spot_number: number;
+  is_occupied: boolean;
+  booked_by?: string;
+}
 
 const ParkingLot = () => {
   const { locationId } = useParams();
   const { toast } = useToast();
+  const { user, signOut } = useAuth();
   const [selectedSpot, setSelectedSpot] = useState<number | null>(null);
-  const [bookedSpots, setBookedSpots] = useState<number[]>([]);
-  
-  const parkingData = mockParkingData[locationId as keyof typeof mockParkingData];
-  
-  if (!parkingData) {
-    return <div>Location not found</div>;
-  }
+  const [parkingData, setParkingData] = useState<ParkingLocation | null>(null);
+  const [parkingSpots, setParkingSpots] = useState<ParkingSpot[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const totalSpots = parkingData.layout.rows * parkingData.layout.spotsPerRow;
-  const occupiedSpots = [...parkingData.layout.occupied, ...bookedSpots];
-  const availableSpots = totalSpots - occupiedSpots.length;
+  useEffect(() => {
+    if (locationId) {
+      fetchParkingData();
+      
+      // Set up real-time subscription
+      const channel = supabase
+        .channel('parking-spots-changes')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'parking_spots',
+            filter: `location_id=eq.${locationId}`
+          },
+          (payload) => {
+            console.log('Real-time update:', payload);
+            fetchParkingSpots();
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }
+  }, [locationId]);
+
+  const fetchParkingData = async () => {
+    try {
+      // Fetch location data
+      const { data: locationData, error: locationError } = await supabase
+        .from('parking_locations')
+        .select('*')
+        .eq('id', locationId)
+        .single();
+
+      if (locationError) throw locationError;
+      setParkingData(locationData);
+
+      // Fetch parking spots
+      await fetchParkingSpots();
+    } catch (error) {
+      console.error('Error fetching parking data:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load parking data",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchParkingSpots = async () => {
+    try {
+      const { data: spotsData, error: spotsError } = await supabase
+        .from('parking_spots')
+        .select('*')
+        .eq('location_id', locationId)
+        .order('spot_number');
+
+      if (spotsError) throw spotsError;
+      setParkingSpots(spotsData || []);
+    } catch (error) {
+      console.error('Error fetching parking spots:', error);
+    }
+  };
 
   const handleSpotClick = (spotNumber: number) => {
-    if (occupiedSpots.includes(spotNumber)) {
+    const spot = parkingSpots.find(s => s.spot_number === spotNumber);
+    if (spot?.is_occupied) {
       return; // Can't select occupied spots
     }
     setSelectedSpot(spotNumber);
   };
 
-  const handleBooking = () => {
-    if (selectedSpot) {
-      setBookedSpots([...bookedSpots, selectedSpot]);
+  const handleBooking = async () => {
+    if (!selectedSpot || !user) return;
+
+    try {
+      const { error } = await supabase
+        .from('parking_spots')
+        .update({
+          is_occupied: true,
+          booked_by: user.id,
+          booking_start: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('location_id', locationId)
+        .eq('spot_number', selectedSpot);
+
+      if (error) throw error;
+
       toast({
         title: "Booking Confirmed!",
         description: `Spot ${selectedSpot} has been reserved for you.`,
       });
       setSelectedSpot(null);
+    } catch (error) {
+      console.error('Error booking spot:', error);
+      toast({
+        title: "Booking Failed",
+        description: "Failed to book the parking spot. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
   const getSpotStatus = (spotNumber: number) => {
-    if (parkingData.layout.occupied.includes(spotNumber)) return 'occupied';
-    if (bookedSpots.includes(spotNumber)) return 'booked';
+    const spot = parkingSpots.find(s => s.spot_number === spotNumber);
+    if (!spot) return 'available';
+    
+    if (spot.is_occupied && spot.booked_by === user?.id) return 'booked';
+    if (spot.is_occupied) return 'occupied';
     if (selectedSpot === spotNumber) return 'selected';
     return 'available';
   };
@@ -81,6 +163,25 @@ const ParkingLot = () => {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading parking lot...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!parkingData) {
+    return <div>Location not found</div>;
+  }
+
+  const totalSpots = parkingData.total_spots;
+  const occupiedSpots = parkingSpots.filter(spot => spot.is_occupied).length;
+  const availableSpots = totalSpots - occupiedSpots;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
       {/* Header */}
@@ -94,7 +195,7 @@ const ParkingLot = () => {
               </Link>
               <div className="text-2xl font-bold text-gray-900">{parkingData.name}</div>
             </div>
-            <Button variant="outline">Logout</Button>
+            <Button variant="outline" onClick={signOut}>Logout</Button>
           </nav>
         </div>
       </header>
@@ -113,7 +214,7 @@ const ParkingLot = () => {
           <Card>
             <CardContent className="p-4 text-center">
               <DollarSign className="h-8 w-8 text-blue-600 mx-auto mb-2" />
-              <div className="text-2xl font-bold text-blue-600">${parkingData.pricePerHour}</div>
+              <div className="text-2xl font-bold text-blue-600">${parkingData.price_per_hour}</div>
               <div className="text-sm text-gray-600">Per Hour</div>
             </CardContent>
           </Card>
@@ -157,10 +258,10 @@ const ParkingLot = () => {
             <div className="bg-gray-100 p-6 rounded-lg">
               <div className="text-center mb-4 text-gray-600 font-medium">ENTRANCE</div>
               <div className="space-y-4">
-                {Array.from({ length: parkingData.layout.rows }, (_, rowIndex) => (
+                {Array.from({ length: parkingData.rows }, (_, rowIndex) => (
                   <div key={rowIndex} className="flex justify-center space-x-2">
-                    {Array.from({ length: parkingData.layout.spotsPerRow }, (_, spotIndex) => {
-                      const spotNumber = rowIndex * parkingData.layout.spotsPerRow + spotIndex + 1;
+                    {Array.from({ length: parkingData.spots_per_row }, (_, spotIndex) => {
+                      const spotNumber = rowIndex * parkingData.spots_per_row + spotIndex + 1;
                       const status = getSpotStatus(spotNumber);
                       return (
                         <div
@@ -188,7 +289,7 @@ const ParkingLot = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-lg font-semibold">Selected Spot: {selectedSpot}</h3>
-                  <p className="text-gray-600">Rate: ${parkingData.pricePerHour}/hour</p>
+                  <p className="text-gray-600">Rate: ${parkingData.price_per_hour}/hour</p>
                 </div>
                 <Dialog>
                   <DialogTrigger asChild>
@@ -210,7 +311,7 @@ const ParkingLot = () => {
                       </div>
                       <div className="flex justify-between">
                         <span>Rate:</span>
-                        <span className="font-semibold">${parkingData.pricePerHour}/hour</span>
+                        <span className="font-semibold">${parkingData.price_per_hour}/hour</span>
                       </div>
                       <div className="flex justify-between">
                         <span>Location:</span>
